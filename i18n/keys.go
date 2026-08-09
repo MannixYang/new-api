@@ -87,6 +87,7 @@ const (
 	MsgUserDisabled                  = "user.disabled"
 	MsgUserSessionSaveFailed         = "user.session_save_failed"
 	MsgUserRequire2FA                = "user.require_2fa"
+	MsgUserLoginFlowExpired          = "user.login_flow_expired"
 	MsgUserEmailVerificationRequired = "user.email_verification_required"
 	MsgUserVerificationCodeError     = "user.verification_code_error"
 	MsgUserEmailAlreadyTaken         = "user.email_already_taken"

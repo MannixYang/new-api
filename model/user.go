@@ -589,6 +589,41 @@ func BindEmailToUser(user *User, email string) error {
 	return updateUserCache(*user)
 }
 
+// BindEmailToUnboundUserWithTx assigns an email only when the account still
+// has no email address. The caller owns the transaction and publishes caches
+// after commit.
+func BindEmailToUnboundUserWithTx(tx *gorm.DB, userId int, email string) error {
+	if tx == nil || userId <= 0 {
+		return errors.New("invalid email binding transaction")
+	}
+	email = NormalizeEmail(email)
+	if email == "" {
+		return errors.New("email is empty")
+	}
+	return withNormalizedEmailLock(tx, email, func(tx *gorm.DB) error {
+		var current User
+		if err := lockForUpdate(tx).Select("id", "email").First(&current, userId).Error; err != nil {
+			return err
+		}
+		if NormalizeEmail(current.Email) != "" {
+			return ErrEmailAlreadyBound
+		}
+		if err := ensureEmailAvailableWithTx(tx, email, userId); err != nil {
+			return err
+		}
+		result := tx.Model(&User{}).
+			Where("id = ? AND (email IS NULL OR email = ?)", userId, "").
+			Update("email", email)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrEmailAlreadyBound
+		}
+		return nil
+	})
+}
+
 func ensureEmailAvailableWithTx(tx *gorm.DB, email string, excludeUserID int) error {
 	email = NormalizeEmail(email)
 	if email == "" {

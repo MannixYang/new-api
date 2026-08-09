@@ -20,7 +20,7 @@ import { Gift, ExternalLink, Loader2, Receipt, WalletCards } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -83,6 +83,79 @@ interface RechargeFormCardProps {
   enableWaffoPancakeTopup?: boolean
 }
 
+const ONLINE_TOPUP_TEMPORARILY_HIDDEN = true
+
+interface TrialOperationCardProps {
+  onOpenBilling?: () => void
+}
+
+function TrialOperationCard(props: TrialOperationCardProps) {
+  const { t } = useTranslation()
+
+  return (
+    <TitledCard
+      title={t('Add Funds')}
+      description={t('Trial operation and offline top-up information')}
+      icon={<WalletCards className='h-4 w-4' />}
+      iconTone='success'
+      disableHoverEffect
+      action={
+        props.onOpenBilling ? (
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={props.onOpenBilling}
+            className='w-full gap-2 sm:w-auto'
+          >
+            <Receipt className='h-4 w-4' />
+            {t('Order History')}
+          </Button>
+        ) : null
+      }
+    >
+      <Alert>
+        <AlertTitle>{t('Trial operation')}</AlertTitle>
+        <AlertDescription className='flex flex-col gap-4'>
+          <p>
+            {t(
+              'Online payment is temporarily unavailable during the trial operation.'
+            )}
+          </p>
+
+          <dl className='grid gap-3 sm:grid-cols-2'>
+            <div className='bg-muted/50 flex flex-col gap-1 rounded-lg p-3'>
+              <dt className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+                {t('WeChat contact')}
+              </dt>
+              <dd className='text-foreground font-semibold select-all'>
+                Mannix_yang_
+              </dd>
+            </div>
+            <div className='bg-muted/50 flex flex-col gap-1 rounded-lg p-3'>
+              <dt className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+                {t('Trial price')}
+              </dt>
+              <dd className='text-foreground font-semibold'>
+                {t('¥10 for US$30 in credit')}
+              </dd>
+            </div>
+          </dl>
+
+          <div className='text-muted-foreground flex flex-col gap-1 text-sm'>
+            <p>{t('Offline top-ups and after-sales support are available.')}</p>
+            <p>{t('Prices for larger amounts are negotiable.')}</p>
+            <p>
+              {t(
+                'Private relay deployment is also available with remote setup.'
+              )}
+            </p>
+          </div>
+        </AlertDescription>
+      </Alert>
+    </TitledCard>
+  )
+}
+
 export function RechargeFormCard({
   topupInfo,
   presetAmounts,
@@ -121,6 +194,10 @@ export function RechargeFormCard({
       prev === '' && topupAmount === 0 ? prev : topupAmount.toString()
     )
   }, [topupAmount])
+
+  if (ONLINE_TOPUP_TEMPORARILY_HIDDEN) {
+    return <TrialOperationCard onOpenBilling={onOpenBilling} />
+  }
 
   const handleAmountChange = (value: string) => {
     setLocalAmount(value)

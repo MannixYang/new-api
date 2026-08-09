@@ -147,6 +147,11 @@ func UpdateOption(c *gin.Context) {
 			common.ApiErrorI18n(c, i18n.MsgPaymentComplianceRequired)
 			return
 		}
+	case "EmailVerificationEnabled", "EmailLoginVerificationEnabled":
+		if option.Value == "true" && !common.IsSMTPConfigured() {
+			common.ApiErrorMsg(c, "请先完整配置 SMTP 邮件服务")
+			return
+		}
 	default:
 		if isPaymentComplianceOptionKey(option.Key) {
 			common.ApiErrorMsg(c, "合规确认字段不允许通过通用设置接口修改")

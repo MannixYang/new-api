@@ -156,6 +156,10 @@ export interface TopupInfo {
   payment_compliance_confirmed?: boolean
   /** Current compliance terms version */
   payment_compliance_terms_version?: string
+  /** Effective quota rewarded to the inviter for each successful referral */
+  inviter_reward_quota?: number
+  /** Effective quota rewarded to the user who registers through a referral */
+  invitee_reward_quota?: number
 }
 
 /**

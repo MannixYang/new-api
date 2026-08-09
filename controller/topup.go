@@ -23,6 +23,12 @@ import (
 
 func GetTopUpInfo(c *gin.Context) {
 	complianceConfirmed := operation_setting.IsPaymentComplianceConfirmed()
+	inviterRewardQuota := 0
+	inviteeRewardQuota := 0
+	if complianceConfirmed {
+		inviterRewardQuota = common.QuotaForInviter
+		inviteeRewardQuota = common.QuotaForInvitee
+	}
 
 	// 获取支付方式
 	payMethods := operation_setting.PayMethods
@@ -104,6 +110,8 @@ func GetTopUpInfo(c *gin.Context) {
 		"enable_redemption":                complianceConfirmed,
 		"payment_compliance_confirmed":     complianceConfirmed,
 		"payment_compliance_terms_version": operation_setting.CurrentComplianceTermsVersion,
+		"inviter_reward_quota":             inviterRewardQuota,
+		"invitee_reward_quota":             inviteeRewardQuota,
 		"waffo_pay_methods": func() interface{} {
 			if enableWaffo {
 				return setting.GetWaffoPayMethods()

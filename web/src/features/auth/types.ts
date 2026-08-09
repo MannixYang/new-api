@@ -28,6 +28,16 @@ export interface LoginPayload {
   turnstile?: string
 }
 
+export interface LoginEmailSendPayload {
+  flow_token: string
+  email?: string
+}
+
+export interface LoginEmailVerifyPayload {
+  flow_token: string
+  code: string
+}
+
 export interface TwoFAPayload {
   code: string
   flow_token: string
@@ -68,9 +78,22 @@ export interface LoginResponse {
     | AuthBundle
     | {
         require_2fa?: boolean
+        require_email_verification?: boolean
+        email_required?: boolean
+        masked_email?: string
         flow_token?: string
         expires_at?: number
       }
+}
+
+export interface LoginEmailSendResponse {
+  success: boolean
+  message: string
+  data?: {
+    flow_token: string
+    masked_email: string
+    expires_at: number
+  }
 }
 
 export interface Login2FAResponse {
@@ -119,6 +142,7 @@ export interface SystemStatus {
     turnstile_check?: boolean
     turnstile_site_key?: string
     email_verification?: boolean
+    email_login_verification?: boolean
     self_use_mode_enabled?: boolean
     display_in_currency?: boolean
     display_token_stat_enabled?: boolean
@@ -164,6 +188,7 @@ export interface SystemStatus {
   turnstile_check?: boolean
   turnstile_site_key?: string
   email_verification?: boolean
+  email_login_verification?: boolean
   self_use_mode_enabled?: boolean
   display_in_currency?: boolean
   display_token_stat_enabled?: boolean

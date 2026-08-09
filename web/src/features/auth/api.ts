@@ -27,6 +27,9 @@ import type {
   LoginPayload,
   LoginResponse,
   Login2FAResponse,
+  LoginEmailSendPayload,
+  LoginEmailSendResponse,
+  LoginEmailVerifyPayload,
   TwoFAPayload,
   RegisterPayload,
   ApiResponse,
@@ -59,6 +62,26 @@ export async function login2fa(payload: TwoFAPayload) {
   const res = await api.post<Login2FAResponse>('/api/user/login/2fa', payload, {
     skipAuthRefresh: true,
   })
+  return res.data
+}
+
+export async function sendLoginEmailVerification(
+  payload: LoginEmailSendPayload
+) {
+  const res = await api.post<LoginEmailSendResponse>(
+    '/api/user/login/email/send',
+    payload,
+    { skipAuthRefresh: true }
+  )
+  return res.data
+}
+
+export async function verifyLoginEmail(payload: LoginEmailVerifyPayload) {
+  const res = await api.post<LoginResponse>(
+    '/api/user/login/email/verify',
+    payload,
+    { skipAuthRefresh: true }
+  )
   return res.data
 }
 

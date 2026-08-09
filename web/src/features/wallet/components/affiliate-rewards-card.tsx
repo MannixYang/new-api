@@ -25,27 +25,23 @@ import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatQuota } from '@/lib/format'
+import { formatLogQuota, formatQuota } from '@/lib/format'
 
 import type { UserWalletData } from '../types'
 
 interface AffiliateRewardsCardProps {
   user: UserWalletData | null
   affiliateLink: string
+  inviterRewardQuota: number
+  inviteeRewardQuota: number
   onTransfer: () => void
   complianceConfirmed?: boolean
   loading?: boolean
 }
 
-export function AffiliateRewardsCard({
-  user,
-  affiliateLink,
-  onTransfer,
-  complianceConfirmed = true,
-  loading,
-}: AffiliateRewardsCardProps) {
+export function AffiliateRewardsCard(props: AffiliateRewardsCardProps) {
   const { t } = useTranslation()
-  if (loading) {
+  if (props.loading) {
     return (
       <Card data-card-hover='false' className='bg-muted/20 py-0'>
         <CardContent className='grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,0.72fr)_minmax(320px,1.15fr)] lg:items-center'>
@@ -60,7 +56,8 @@ export function AffiliateRewardsCard({
     )
   }
 
-  const hasRewards = (user?.aff_quota ?? 0) > 0
+  const hasRewards = (props.user?.aff_quota ?? 0) > 0
+  const complianceConfirmed = props.complianceConfirmed ?? true
 
   return (
     <Card data-card-hover='false' className='bg-muted/20 py-0'>
@@ -78,14 +75,31 @@ export function AffiliateRewardsCard({
                 'Earn rewards when users join through your referral link. Transfer accumulated rewards to your balance anytime.'
               )}
             </p>
+            <dl className='mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs'>
+              <div className='flex items-baseline gap-1'>
+                <dt className='text-muted-foreground'>{t('Inviter Reward')}</dt>
+                <dd className='font-semibold tabular-nums'>
+                  {formatLogQuota(props.inviterRewardQuota)}
+                </dd>
+              </div>
+              <div className='flex items-baseline gap-1'>
+                <dt className='text-muted-foreground'>{t('Invitee Reward')}</dt>
+                <dd className='font-semibold tabular-nums'>
+                  {formatLogQuota(props.inviteeRewardQuota)}
+                </dd>
+              </div>
+            </dl>
           </div>
         </div>
 
         <div className='grid grid-cols-3 gap-1.5 text-center'>
           {[
-            [t('Pending'), formatQuota(user?.aff_quota ?? 0)],
-            [t('Total Earned'), formatQuota(user?.aff_history_quota ?? 0)],
-            [t('Invites'), String(user?.aff_count ?? 0)],
+            [t('Pending'), formatQuota(props.user?.aff_quota ?? 0)],
+            [
+              t('Total Earned'),
+              formatQuota(props.user?.aff_history_quota ?? 0),
+            ],
+            [t('Invites'), String(props.user?.aff_count ?? 0)],
           ].map(([label, value]) => (
             <div key={label}>
               <div className='text-muted-foreground truncate text-[10px] font-medium tracking-wider uppercase'>
@@ -100,12 +114,12 @@ export function AffiliateRewardsCard({
 
         <div className='flex items-center gap-2'>
           <Input
-            value={affiliateLink}
+            value={props.affiliateLink}
             readOnly
             className='border-muted bg-background/70 h-9 min-w-0 flex-1 font-mono text-xs'
           />
           <CopyButton
-            value={affiliateLink}
+            value={props.affiliateLink}
             variant='outline'
             className='bg-background size-9 shrink-0'
             iconClassName='size-4'
@@ -114,7 +128,7 @@ export function AffiliateRewardsCard({
           />
           {hasRewards && (
             <Button
-              onClick={onTransfer}
+              onClick={props.onTransfer}
               disabled={!complianceConfirmed}
               className='h-9 shrink-0 px-3'
               size='sm'

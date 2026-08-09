@@ -40,14 +40,23 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { login, wechatLoginByCode } from '@/features/auth/api'
+import {
+  login,
+  sendLoginEmailVerification,
+  verifyLoginEmail,
+  wechatLoginByCode,
+} from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
-import { loginFormSchema } from '@/features/auth/constants'
+import {
+  EMAIL_VERIFICATION_COUNTDOWN,
+  loginFormSchema,
+} from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
 import { beginPasskeyLogin, finishPasskeyLogin } from '@/features/auth/passkey'
 import type { AuthFormProps } from '@/features/auth/types'
+import { useCountdown } from '@/hooks/use-countdown'
 import { useStatus } from '@/hooks/use-status'
 import { isAuthBundle } from '@/lib/api'
 import {
@@ -58,6 +67,14 @@ import {
 import { getServerErrorMessageKey } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
+
+import { EmailLoginVerificationDialog } from './email-login-verification-dialog'
+
+interface EmailLoginChallenge {
+  flowToken: string
+  emailRequired: boolean
+  maskedEmail: string
+}
 
 export function UserAuthForm({
   className,
@@ -72,6 +89,12 @@ export function UserAuthForm({
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
+  const [emailLoginChallenge, setEmailLoginChallenge] =
+    useState<EmailLoginChallenge | null>(null)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginEmailCode, setLoginEmailCode] = useState('')
+  const [isLoginEmailSending, setIsLoginEmailSending] = useState(false)
+  const [isLoginEmailVerifying, setIsLoginEmailVerifying] = useState(false)
   const legalConsentErrorMessage = t('Please agree to the legal terms first')
   const loginFailedMessage = t('Login failed')
 
@@ -91,6 +114,9 @@ export function UserAuthForm({
     validateTurnstile,
   } = useTurnstile()
   const { handleLoginSuccess, redirectTo2FA } = useAuthRedirect()
+  const emailLoginCountdown = useCountdown({
+    initialSeconds: EMAIL_VERIFICATION_COUNTDOWN,
+  })
   const setPending2FAFlowToken = useAuthStore(
     (state) => state.auth.setPending2FAFlowToken
   )
@@ -167,6 +193,29 @@ export function UserAuthForm({
       })
 
       if (res.success) {
+        if (
+          res.data &&
+          'require_email_verification' in res.data &&
+          res.data.require_email_verification
+        ) {
+          if (!res.data.flow_token) {
+            throw new Error(t('Login flow expired. Please sign in again.'))
+          }
+          const challenge: EmailLoginChallenge = {
+            flowToken: res.data.flow_token,
+            emailRequired: res.data.email_required === true,
+            maskedEmail: res.data.masked_email ?? '',
+          }
+          setEmailLoginChallenge(challenge)
+          setLoginEmail('')
+          setLoginEmailCode('')
+          emailLoginCountdown.reset()
+          if (!challenge.emailRequired) {
+            await handleSendLoginEmailCode(challenge)
+          }
+          return
+        }
+
         if (res.data && 'require_2fa' in res.data && res.data.require_2fa) {
           if (!res.data.flow_token) {
             throw new Error(t('Login flow expired. Please sign in again.'))
@@ -188,6 +237,98 @@ export function UserAuthForm({
     } finally {
       setIsLoading(false)
     }
+  }
+
+  async function handleSendLoginEmailCode(
+    challengeOverride?: EmailLoginChallenge
+  ) {
+    const challenge = challengeOverride ?? emailLoginChallenge
+    if (!challenge) {
+      toast.error(t('Login flow expired. Please sign in again.'))
+      return
+    }
+    if (challenge.emailRequired && !loginEmail.trim()) {
+      toast.error(t('Please enter your email'))
+      return
+    }
+
+    setIsLoginEmailSending(true)
+    try {
+      const res = await sendLoginEmailVerification({
+        flow_token: challenge.flowToken,
+        email: challenge.emailRequired ? loginEmail.trim() : undefined,
+      })
+      if (!res.success || !res.data?.flow_token) {
+        if (getServerErrorMessageKey(res)) return
+        toast.error(res.message || t('Failed to send verification email'))
+        return
+      }
+      setEmailLoginChallenge({
+        ...challenge,
+        flowToken: res.data.flow_token,
+        maskedEmail: res.data.masked_email,
+      })
+      emailLoginCountdown.start()
+      toast.success(t('Verification email sent'))
+    } catch (error: unknown) {
+      if (getServerErrorMessageKey(error)) return
+      toast.error(t('Failed to send verification email'))
+    } finally {
+      setIsLoginEmailSending(false)
+    }
+  }
+
+  async function handleVerifyLoginEmail() {
+    if (!emailLoginChallenge) {
+      toast.error(t('Login flow expired. Please sign in again.'))
+      return
+    }
+    if (loginEmailCode.trim().length !== 6) {
+      toast.error(t('Please enter the verification code'))
+      return
+    }
+
+    setIsLoginEmailVerifying(true)
+    try {
+      const res = await verifyLoginEmail({
+        flow_token: emailLoginChallenge.flowToken,
+        code: loginEmailCode.trim(),
+      })
+      if (!res.success) {
+        if (getServerErrorMessageKey(res)) return
+        toast.error(res.message || t('Verification failed'))
+        return
+      }
+      if (res.data && 'require_2fa' in res.data && res.data.require_2fa) {
+        if (!res.data.flow_token) {
+          throw new Error(t('Login flow expired. Please sign in again.'))
+        }
+        setPending2FAFlowToken(res.data.flow_token)
+        setEmailLoginChallenge(null)
+        redirectTo2FA()
+        return
+      }
+      if (!isAuthBundle(res.data)) {
+        throw new Error(t('Login failed'))
+      }
+      setEmailLoginChallenge(null)
+      emailLoginCountdown.reset()
+      await handleLoginSuccess(res.data, redirectTo)
+      toast.success(t('Welcome back!'))
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) return
+      toast.error(error instanceof Error ? error.message : loginFailedMessage)
+    } finally {
+      setIsLoginEmailVerifying(false)
+    }
+  }
+
+  function handleEmailLoginDialogChange(open: boolean) {
+    if (open) return
+    setEmailLoginChallenge(null)
+    setLoginEmail('')
+    setLoginEmailCode('')
+    emailLoginCountdown.reset()
   }
 
   const handleOpenWeChatDialog = () => {
@@ -491,6 +632,24 @@ export function UserAuthForm({
           </div>
         </Dialog>
       )}
+
+      <EmailLoginVerificationDialog
+        open={emailLoginChallenge !== null}
+        onOpenChange={handleEmailLoginDialogChange}
+        emailRequired={emailLoginChallenge?.emailRequired ?? false}
+        maskedEmail={emailLoginChallenge?.maskedEmail ?? ''}
+        email={loginEmail}
+        code={loginEmailCode}
+        onEmailChange={setLoginEmail}
+        onCodeChange={setLoginEmailCode}
+        onSend={handleSendLoginEmailCode}
+        onVerify={handleVerifyLoginEmail}
+        isSending={isLoginEmailSending}
+        isVerifying={isLoginEmailVerifying}
+        secondsLeft={
+          emailLoginCountdown.isActive ? emailLoginCountdown.secondsLeft : 0
+        }
+      />
     </Form>
   )
 }

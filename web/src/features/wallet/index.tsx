@@ -342,11 +342,13 @@ export function Wallet(props: WalletProps) {
             <AffiliateRewardsCard
               user={user}
               affiliateLink={affiliateLink}
+              inviterRewardQuota={topupInfo?.inviter_reward_quota ?? 0}
+              inviteeRewardQuota={topupInfo?.invitee_reward_quota ?? 0}
               onTransfer={() => setTransferDialogOpen(true)}
               complianceConfirmed={
                 topupInfo?.payment_compliance_confirmed !== false
               }
-              loading={affiliateLoading}
+              loading={affiliateLoading || topupLoading}
             />
           </div>
         </SectionPageLayout.Content>

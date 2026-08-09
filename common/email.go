@@ -34,6 +34,19 @@ func shouldAuthenticateSMTP() bool {
 	return SMTPAccount != "" && SMTPToken != ""
 }
 
+func IsSMTPConfigured() bool {
+	sender := strings.TrimSpace(SMTPFrom)
+	if sender == "" {
+		sender = strings.TrimSpace(SMTPAccount)
+	}
+	parts := strings.Split(sender, "@")
+	return strings.TrimSpace(SMTPServer) != "" &&
+		SMTPPort > 0 &&
+		len(parts) == 2 &&
+		parts[0] != "" &&
+		parts[1] != ""
+}
+
 func smtpTLSConfig() *tls.Config {
 	return &tls.Config{
 		ServerName:         SMTPServer,
@@ -79,12 +92,12 @@ func SendEmail(subject string, receiver string, content string) error {
 	if SMTPFrom == "" { // for compatibility
 		SMTPFrom = SMTPAccount
 	}
+	if !IsSMTPConfigured() {
+		return fmt.Errorf("SMTP 服务器未配置")
+	}
 	id, err2 := generateMessageID()
 	if err2 != nil {
 		return err2
-	}
-	if SMTPServer == "" && SMTPAccount == "" {
-		return fmt.Errorf("SMTP 服务器未配置")
 	}
 	encodedSubject := fmt.Sprintf("=?UTF-8?B?%s?=", base64.StdEncoding.EncodeToString([]byte(subject)))
 	mail := []byte(fmt.Sprintf("To: %s\r\n"+

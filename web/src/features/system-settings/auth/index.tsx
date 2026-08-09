@@ -28,6 +28,7 @@ const defaultAuthSettings: AuthSettings = {
   PasswordLoginEnabled: true,
   PasswordRegisterEnabled: true,
   EmailVerificationEnabled: false,
+  EmailLoginVerificationEnabled: false,
   RegisterEnabled: true,
   EmailDomainRestrictionEnabled: false,
   EmailAliasRestrictionEnabled: false,
