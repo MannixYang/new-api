@@ -138,6 +138,8 @@ Redis 限流使用原子 Lua 固定窗口，替代旧的近似滑动窗口 List 
 
 开放注册仍会受 Critical IP 限流保护，但分布式 IP 多账号攻击不能仅靠 IP 限流阻止。公网开放注册的部署应同时启用 Turnstile 和邮箱验证；更强的设备或多维风控需作为独立安全项目设计。
 
+启用 `TurnstileCheckEnabled` 后，密码登录和注册都必须提交有效的 Cloudflare Turnstile token。面板前端通过 `X-Turnstile-Token` 请求头提交登录 token；服务端会在签发登录会话前向 Cloudflare 校验 token，并对校验请求设置超时。为兼容旧客户端，登录接口仍接受 `turnstile` 查询参数。
+
 ## PAT 调用契约
 
 `User.AccessToken`（面板 PAT）继续支持 `Authorization: Bearer <pat>`，也兼容原有的单值 `Authorization: <pat>`。`New-Api-User` 不再参与鉴权，外部脚本不需要再发送 Bearer 与用户 ID 双请求头。这是有意的调用契约简化；旧 PAT 本身无需重新生成。
